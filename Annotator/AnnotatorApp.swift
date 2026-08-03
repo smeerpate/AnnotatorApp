@@ -1,32 +1,22 @@
-//
-//  AnnotatorApp.swift
-//  Annotator
-//
-//  Created by Frederic Torreele on 03/08/2026.
-//
-
 import SwiftUI
-import SwiftData
 
 @main
-struct AnnotatorApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+struct NutAnnotatorApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var store = AnnotationStore()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(store)
+                .task { store.restoreLastFolder() }
         }
-        .modelContainer(sharedModelContainer)
+        .onChange(of: scenePhase) { _, phase in
+            // Annotating on the couch means the app gets backgrounded a lot.
+            if phase != .active { store.saveNow() }
+        }
+        #if os(macOS)
+        .defaultSize(width: 1200, height: 900)
+        #endif
     }
 }
