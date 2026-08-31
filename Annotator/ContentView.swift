@@ -5,8 +5,7 @@ struct ContentView: View {
     @Environment(AnnotationStore.self) private var store
 
     @State private var showingFolderPicker = false
-    @State private var showingNewLabel = false
-    @State private var newLabelText = ""
+    @State private var showingLabelManager = false
     @State private var loaded: LoadedImage?
     @State private var isLoading = false
 
@@ -15,7 +14,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 canvasArea
                 Divider()
-                LabelBar(addLabelTapped: { showingNewLabel = true })
+                LabelBar(manageTapped: { showingLabelManager = true })
                 Divider()
                 navigationBar
             }
@@ -31,15 +30,8 @@ struct ContentView: View {
                       allowedContentTypes: [.folder]) { result in
             if case .success(let folder) = result { store.open(folder: folder) }
         }
-        .alert("New label", isPresented: $showingNewLabel) {
-            TextField("Name", text: $newLabelText)
-            Button("Add") {
-                store.addLabel(newLabelText)
-                newLabelText = ""
-            }
-            Button("Cancel", role: .cancel) { newLabelText = "" }
-        } message: {
-            Text("Labels are shared across every photo in this folder.")
+        .sheet(isPresented: $showingLabelManager) {
+            LabelManagerView()
         }
     }
 
@@ -53,8 +45,10 @@ struct ContentView: View {
             if store.folderURL == nil {
                 emptyState
             } else if let entry = store.current, let loaded {
-                AnnotationCanvas(entry: entry, image: loaded.cgImage)
-                    .id(entry.id)
+                ZoomableContainer {
+                    AnnotationCanvas(entry: entry, image: loaded.cgImage)
+                }
+                .id(entry.id)
             } else if isLoading {
                 ProgressView().tint(.white)
             } else {
@@ -144,6 +138,9 @@ struct ContentView: View {
             Menu {
                 Toggle("Apple Pencil only", isOn: Bindable(store).pencilOnly)
                 Divider()
+                Button("Manage labels", systemImage: "tag") {
+                    showingLabelManager = true
+                }
                 Button("Next photo without boxes", systemImage: "forward.end") {
                     store.goToNextUnlabelled()
                 }
@@ -153,6 +150,9 @@ struct ContentView: View {
                 Divider()
                 Button("Export YOLO and COCO", systemImage: "square.and.arrow.up") {
                     store.exportDatasetFiles()
+                }
+                Button("Export for Edge Impulse", systemImage: "square.and.arrow.up.on.square") {
+                    store.exportEdgeImpulse()
                 }
                 Button("Choose another folder", systemImage: "folder") {
                     showingFolderPicker = true

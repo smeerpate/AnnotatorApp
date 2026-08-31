@@ -219,6 +219,45 @@ final class AnnotationStore {
         scheduleSave()
     }
 
+    /// Renames a label everywhere it is used. If the new name collides with an
+    /// existing label, the two are merged instead of ending up with a
+    /// duplicate — every box under the old name simply becomes the existing one.
+    func renameLabel(_ old: String, to raw: String) {
+        let new = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !new.isEmpty, new != old, let index = labels.firstIndex(of: old) else { return }
+
+        if labels.contains(new) {
+            labels.remove(at: index)
+        } else {
+            labels[index] = new
+        }
+        for entry in entries {
+            for i in entry.boxes.indices where entry.boxes[i].label == old {
+                entry.boxes[i].label = new
+            }
+        }
+        if activeLabel == old { activeLabel = new }
+        scheduleSave()
+    }
+
+    /// Removes a label and every box that used it. Refuses to remove the last
+    /// remaining label, since every new box needs something to be labelled.
+    func deleteLabel(_ label: String) {
+        guard labels.count > 1, let index = labels.firstIndex(of: label) else { return }
+        labels.remove(at: index)
+        for entry in entries {
+            entry.boxes.removeAll { $0.label == label }
+        }
+        if activeLabel == label { activeLabel = labels.first ?? "" }
+        scheduleSave()
+    }
+
+    /// How many boxes, across every photo, currently use this label. Shown
+    /// before a delete so the person knows what they are about to lose.
+    func boxCount(for label: String) -> Int {
+        entries.reduce(0) { $0 + $1.boxes.filter { $0.label == label }.count }
+    }
+
     // MARK: - Persistence
 
     private var annotationsURL: URL? {
@@ -275,6 +314,17 @@ final class AnnotationStore {
         do {
             let summary = try DatasetExporter().write(entries: entries, labels: labels, into: folder)
             status = "Wrote \(summary) next to your photos."
+        } catch {
+            status = "Export failed: \(error.localizedDescription)"
+        }
+    }
+
+    func exportEdgeImpulse() {
+        guard let folder = folderURL else { return }
+        saveNow()
+        do {
+            let summary = try EdgeImpulseExporter().write(entries: entries, into: folder)
+            status = "Wrote \(summary)"
         } catch {
             status = "Export failed: \(error.localizedDescription)"
         }

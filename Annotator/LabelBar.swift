@@ -6,7 +6,7 @@ import SwiftUI
 struct LabelBar: View {
     @Environment(AnnotationStore.self) private var store
 
-    let addLabelTapped: () -> Void
+    let manageTapped: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -44,8 +44,8 @@ struct LabelBar: View {
                         .buttonStyle(.plain)
                     }
 
-                    Button(action: addLabelTapped) {
-                        Label("New label", systemImage: "plus")
+                    Button(action: manageTapped) {
+                        Label("Edit labels", systemImage: "pencil")
                             .font(.callout)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 9)
